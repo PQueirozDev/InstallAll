@@ -43,10 +43,10 @@ export function createApp() {
     if (!format) throw new AppError(400, "FORMAT_UNAVAILABLE", "Formato solicitado indisponível.");
     res.status(202).json(await createJob(owner(req), validated.url, provider, format, info.title));
   }));
-  app.get("/api/jobs/:id", (req, res) => res.json(getJob(routeId(req.params.id), owner(req))));
+  app.get("/api/jobs/:id", (req, res) => res.json(getJob(routeId(req.params.id))));
   app.get("/api/jobs/:id/file", asyncRoute(async (req, res) => {
     const id = routeId(req.params.id);
-    const file = await getJobFile(id, owner(req));
+    const file = await getJobFile(id);
     res.setHeader("Content-Type", file.filename.endsWith(".mp3") ? "audio/mpeg" : "video/mp4");
     res.setHeader("Content-Length", file.size);
     res.setHeader("Content-Disposition", `attachment; filename="${file.filename}"; filename*=UTF-8''${encodeURIComponent(file.filename)}`);

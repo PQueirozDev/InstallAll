@@ -11,5 +11,6 @@ describe("detectPlatform", () => {
   it.each(["file:///etc/passwd", "http://localhost/a", "https://youtube.com.evil.test/a", "not-url"])("rejeita %s", (url) => expect(() => detectPlatform(url)).toThrow());
 });
 describe("sanitizeFilename", () => {
-  it("remove traversal e caracteres especiais", () => expect(sanitizeFilename("../../Olá: vídeo? *2026*")).toBe("....Ola-video-2026"));
+  it("remove traversal e caracteres especiais", () => expect(sanitizeFilename("../../Olá: vídeo? *2026*")).toBe("Ola-video-2026"));
+  it("usa fallback para títulos não latinos", () => expect(sanitizeFilename("장막버그...")).toBe("video"));
 });
