@@ -10,3 +10,5 @@ tmp
 *.part
 *.ytdl
 .DS_Store
+
+.vercel
