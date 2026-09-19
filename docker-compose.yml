@@ -1,0 +1,21 @@
+services:
+  api:
+    build: { context: ., target: api }
+    environment:
+      PORT: 4000
+      WEB_ORIGIN: http://localhost:3000
+      TEMP_DIR: /tmp/installall
+      TRUST_PROXY: "false"
+    ports: ["4000:4000"]
+    tmpfs: ["/tmp/installall:size=2147483648"]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+  web:
+    build:
+      context: .
+      target: web
+      args: { NEXT_PUBLIC_API_URL: http://localhost:4000 }
+    depends_on: [api]
+    ports: ["3000:3000"]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]

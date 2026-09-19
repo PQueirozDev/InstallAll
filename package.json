@@ -1,0 +1,15 @@
+{
+  "name": "installall",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "npm@11.19.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w @installall/web\" \"npm run dev -w @installall/api\"",
+    "build": "npm run build -w @installall/shared && npm run build -w @installall/api && npm run build -w @installall/web",
+    "test": "npm run test -w @installall/api",
+    "lint": "npm run lint -w @installall/web && npm run lint -w @installall/api",
+    "typecheck": "npm run build -w @installall/shared && npm run typecheck -w @installall/api && npm run typecheck -w @installall/web"
+  },
+  "devDependencies": { "concurrently": "^9.2.1" }
+}
