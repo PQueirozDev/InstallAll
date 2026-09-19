@@ -1,0 +1,26 @@
+FROM node:24-bookworm-slim AS build
+WORKDIR /app
+COPY package*.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/shared/package.json packages/shared/package.json
+RUN npm ci
+COPY tsconfig.base.json ./
+COPY packages/shared packages/shared
+COPY apps/api apps/api
+RUN npm run build -w @installall/shared && npm run build -w @installall/api
+
+FROM node:24-bookworm-slim
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 python3-pip \
+  && pip3 install --break-system-packages --no-cache-dir --pre "yt-dlp[default]" \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+ENV NODE_ENV=production PORT=10000 TEMP_DIR=/tmp/installall TRUST_PROXY=true
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build /app/packages/shared ./packages/shared
+USER node
+EXPOSE 10000
+CMD ["node", "apps/api/dist/server.js"]

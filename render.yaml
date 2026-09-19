@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: installall-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.api
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: WEB_ORIGIN
+        value: https://installall.vercel.app
+      - key: TRUST_PROXY
+        value: "true"
+      - key: TEMP_DIR
+        value: /tmp/installall
+      - key: JOB_TTL_MS
+        value: "1800000"
