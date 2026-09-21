@@ -12,7 +12,9 @@ export class YtDlpProvider implements Provider {
   private extractorArgs(): string[] {
     // The embedded client is intentionally limited to publicly embeddable videos
     // and does not require account cookies or authentication bypasses.
-    return this.platform === "youtube" ? ["--extractor-args", "youtube:player_client=web_embedded"] : [];
+    return this.platform === "youtube"
+      ? ["--extractor-args", "youtube:player_client=web_embedded;player_skip=webpage"]
+      : [];
   }
   async getInfo(url: string): Promise<MediaInfo> {
     const out = await runProcess(config.YTDLP_PATH, ["--dump-single-json", "--no-playlist", "--no-warnings", "--socket-timeout", "15", ...this.extractorArgs(), url], { timeoutMs: 90_000 });
