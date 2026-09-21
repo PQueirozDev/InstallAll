@@ -17,7 +17,15 @@ export class YtDlpProvider implements Provider {
       : [];
   }
   async getInfo(url: string): Promise<MediaInfo> {
-    const out = await runProcess(config.YTDLP_PATH, ["--dump-single-json", "--no-playlist", "--no-warnings", "--socket-timeout", "15", ...this.extractorArgs(), url], { timeoutMs: 90_000 });
+    let out: string;
+    try {
+      out = await runProcess(config.YTDLP_PATH, ["--dump-single-json", "--no-playlist", "--no-warnings", "--socket-timeout", "15", ...this.extractorArgs(), url], { timeoutMs: 90_000 });
+    } catch (error) {
+      if (this.platform === "youtube" && error instanceof AppError && error.code === "EXTRACTOR_ERROR") {
+        throw new AppError(422, "YOUTUBE_RESTRICTED", "O YouTube bloqueou o acesso deste servidor. Apenas vídeos públicos e incorporáveis podem funcionar, sem contornar a proteção da plataforma.");
+      }
+      throw error;
+    }
     const raw = JSON.parse(out) as RawInfo;
     if (!raw.id || !raw.title) throw new AppError(422, "NO_METADATA", "Não foi possível obter os dados desse vídeo.");
     if ((raw.duration ?? 0) > config.MAX_MEDIA_DURATION_SECONDS) throw new AppError(413, "TOO_LONG", "Este vídeo excede o limite de duração configurado.");
