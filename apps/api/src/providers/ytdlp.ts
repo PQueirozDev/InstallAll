@@ -9,8 +9,13 @@ interface RawInfo { id?: string; title?: string; uploader?: string; channel?: st
 
 export class YtDlpProvider implements Provider {
   constructor(public readonly platform: Platform) {}
+  private extractorArgs(): string[] {
+    // The embedded client is intentionally limited to publicly embeddable videos
+    // and does not require account cookies or authentication bypasses.
+    return this.platform === "youtube" ? ["--extractor-args", "youtube:player_client=web_embedded"] : [];
+  }
   async getInfo(url: string): Promise<MediaInfo> {
-    const out = await runProcess(config.YTDLP_PATH, ["--dump-single-json", "--no-playlist", "--no-warnings", "--socket-timeout", "15", url], { timeoutMs: 90_000 });
+    const out = await runProcess(config.YTDLP_PATH, ["--dump-single-json", "--no-playlist", "--no-warnings", "--socket-timeout", "15", ...this.extractorArgs(), url], { timeoutMs: 90_000 });
     const raw = JSON.parse(out) as RawInfo;
     if (!raw.id || !raw.title) throw new AppError(422, "NO_METADATA", "Não foi possível obter os dados desse vídeo.");
     if ((raw.duration ?? 0) > config.MAX_MEDIA_DURATION_SECONDS) throw new AppError(413, "TOO_LONG", "Este vídeo excede o limite de duração configurado.");
@@ -34,7 +39,7 @@ export class YtDlpProvider implements Provider {
     return list;
   }
   buildDownloadArgs(url: string, format: MediaFormat, output: string): string[] {
-    const common = ["--no-playlist", "--no-warnings", "--newline", "--progress-template", "download:PROGRESS:%(progress._percent_str)s", "--max-filesize", String(config.MAX_OUTPUT_BYTES), "-o", output];
+    const common = ["--no-playlist", "--no-warnings", "--newline", ...this.extractorArgs(), "--progress-template", "download:PROGRESS:%(progress._percent_str)s", "--max-filesize", String(config.MAX_OUTPUT_BYTES), "-o", output];
     if (format.kind === "audio") return [...common, "-f", "bestaudio", "-x", "--audio-format", "mp3", "--audio-quality", `${format.bitrate ?? 192}K`, url];
     const selector = format.height ? `bestvideo[height<=${format.height}]+bestaudio/best[height<=${format.height}]` : "bestvideo+bestaudio/best";
     return [...common, "-f", selector, "--merge-output-format", "mp4", url];
