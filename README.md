@@ -87,7 +87,7 @@ Abra `http://localhost:3000`; a API fica em `http://localhost:4000`. Em PowerShe
 | `WEB_ORIGIN` | `http://localhost:3000` | Origem exata permitida no CORS |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:4000` | URL pública da API, embutida no build web |
 | `YTDLP_PATH` | `yt-dlp` | Caminho do executável yt-dlp |
-| `FFMPEG_PATH` | `ffmpeg` | Caminho do FFmpeg (documental; yt-dlp usa PATH) |
+| `FFMPEG_PATH` | `ffmpeg` | Usa PATH por padrão; um caminho explícito é enviado ao yt-dlp |
 | `TEMP_DIR` | `./tmp` | Diretório isolado de jobs |
 | `MAX_MEDIA_DURATION_SECONDS` | `7200` | Duração máxima aceita |
 | `MAX_OUTPUT_BYTES` | `2147483648` | Tamanho máximo solicitado ao extrator |
@@ -155,6 +155,14 @@ Para adicionar uma plataforma:
 7. documente restrições legais e técnicas específicas.
 
 ## Limitações
+
+### Verificação de YouTube, MP3 e MP4
+
+O provider usa a seleção de clientes públicos mantida pelo yt-dlp e habilita o runtime Node instalado. Instale `yt-dlp[default]`, Node 22 ou superior, FFmpeg e FFprobe. Referência: https://github.com/yt-dlp/yt-dlp/wiki/EJS.
+
+Para verificar a integração real (inclui download e conversão do filme público Big Buck Bunny da Blender Foundation), execute `npx tsx apps/api/scripts/smoke-download.ts`. O teste inicia uma API local temporária, analisa o vídeo, solicita MP3 128 kbps e MP4 360p, acompanha os jobs e valida os headers, tamanho e assinatura dos arquivos entregues. Pode consumir dezenas de MB e levar vários minutos. Defina `SMOKE_API_URL` para testar uma API já publicada. Esse teste depende de acesso externo e não faz parte dos testes unitários.
+
+Acesso local bem-sucedido não garante acesso pelo provedor de hospedagem. Bloqueios do YouTube, restrições de conta ou de região continuam sendo erros; não são contornados com proxies, cookies ou credenciais. O aplicativo não promete download de qualquer vídeo.
 
 - Compatibilidade depende das páginas públicas e do yt-dlp; alterações externas podem quebrar temporariamente um provider.
 - Instagram e X podem restringir conteúdo público por região ou exigir sessão; o InstallAll não tenta contornar isso.

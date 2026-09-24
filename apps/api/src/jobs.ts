@@ -38,11 +38,12 @@ export async function createJob(owner: string, url: string, provider: Provider, 
       }});
       job.status = "finalizing"; job.progress = 97;
       const files = await readdir(dir);
-      const actual = files.find((file) => file.endsWith(`.${ext}`)) ?? files.find((file) => !file.endsWith(".part") && !file.endsWith(".ytdl"));
+      const actual = files.find((file) => file === `media.${ext}`);
       if (!actual) throw new AppError(500, "NO_OUTPUT", "Não foi possível concluir o processamento.");
+      if ((await stat(path.join(dir, actual))).size > config.MAX_OUTPUT_BYTES) throw new AppError(413, "FILE_TOO_LARGE", "O arquivo excede o tamanho permitido.");
       job.filePath = path.join(dir, actual); job.filename = `${sanitizeFilename(title)}.${ext}`; job.status = "ready"; job.progress = 100; job.downloadUrl = `/api/jobs/${id}/file`;
     } catch (error) { job.status = "failed"; job.error = error instanceof AppError ? error.message : "Não foi possível concluir o processamento."; }
-    finally { activeByIp.set(owner, Math.max(0, (activeByIp.get(owner) ?? 1) - 1)); }
+    finally { activeByIp.set(owner, Math.max(0, (activeByIp.get(owner) ?? 1) - 1)); if (job.status === "failed") await rm(dir, { recursive: true, force: true }); }
   })();
   return expose(job);
 }

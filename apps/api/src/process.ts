@@ -22,7 +22,7 @@ export function runProcess(command: string, args: readonly string[], options: Ru
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code === 0) resolve(stdout);
-      else reject(new AppError(422, "EXTRACTOR_ERROR", classify(stderr)));
+      else reject(new AppError(422, /confirm you.re not a bot|sign in to confirm|http error 429/i.test(stderr) ? "ACCESS_RESTRICTED" : "EXTRACTOR_ERROR", classify(stderr)));
     });
   });
 }

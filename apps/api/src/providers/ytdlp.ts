@@ -10,19 +10,18 @@ interface RawInfo { id?: string; title?: string; uploader?: string; channel?: st
 export class YtDlpProvider implements Provider {
   constructor(public readonly platform: Platform) {}
   private extractorArgs(): string[] {
-    // The embedded client is intentionally limited to publicly embeddable videos
-    // and does not require account cookies or authentication bypasses.
+    // Use upstream's maintained public-client selection and the installed runtime.
     return this.platform === "youtube"
-      ? ["--extractor-args", "youtube:player_client=web_embedded;player_skip=webpage"]
+      ? ["--js-runtimes", "node"]
       : [];
   }
   async getInfo(url: string): Promise<MediaInfo> {
     let out: string;
     try {
-      out = await runProcess(config.YTDLP_PATH, ["--dump-single-json", "--no-playlist", "--no-warnings", "--socket-timeout", "15", ...this.extractorArgs(), url], { timeoutMs: 90_000 });
+      out = await runProcess(config.YTDLP_PATH, ["--ignore-config", "--dump-single-json", "--no-playlist", "--no-warnings", "--socket-timeout", "15", ...this.extractorArgs(), "--", url], { timeoutMs: 90_000 });
     } catch (error) {
-      if (this.platform === "youtube" && error instanceof AppError && error.code === "EXTRACTOR_ERROR") {
-        throw new AppError(422, "YOUTUBE_RESTRICTED", "O YouTube bloqueou o acesso deste servidor. Apenas vídeos públicos e incorporáveis podem funcionar, sem contornar a proteção da plataforma.");
+      if (this.platform === "youtube" && error instanceof AppError && error.code === "ACCESS_RESTRICTED") {
+        throw new AppError(422, "YOUTUBE_RESTRICTED", "O YouTube restringiu o acesso deste servidor. Não foi possível baixar este vídeo agora.");
       }
       throw error;
     }
@@ -36,7 +35,7 @@ export class YtDlpProvider implements Provider {
   private toFormats(raw: RawFormat[]): MediaFormat[] {
     const videos = new Map<number, MediaFormat>();
     for (const f of raw) {
-      if (!f.height || f.vcodec === "none") continue;
+      if (!f.height || !f.vcodec || f.vcodec === "none") continue;
       const height = f.height;
       if (this.platform === "youtube" && ![360, 480, 720, 1080].includes(height)) continue;
       const bytes = f.filesize ?? f.filesize_approx;
@@ -45,13 +44,14 @@ export class YtDlpProvider implements Provider {
     }
     const list = [...videos.values()].sort((a, b) => (a.height ?? 0) - (b.height ?? 0));
     if (list.length) list.push({ id: "video-best", kind: "video", container: "mp4", label: "Melhor qualidade" });
-    if (this.platform === "youtube") for (const bitrate of [128, 192, 320]) list.push({ id: `audio-${bitrate}`, kind: "audio", container: "mp3", label: `MP3 ${bitrate} kbps`, bitrate });
+    if (this.platform === "youtube" && raw.some((f) => f.acodec && f.acodec !== "none")) for (const bitrate of [128, 192, 320]) list.push({ id: `audio-${bitrate}`, kind: "audio", container: "mp3", label: `MP3 ${bitrate} kbps`, bitrate });
     return list;
   }
   buildDownloadArgs(url: string, format: MediaFormat, output: string): string[] {
-    const common = ["--no-playlist", "--no-warnings", "--newline", ...this.extractorArgs(), "--progress-template", "download:PROGRESS:%(progress._percent_str)s", "--max-filesize", String(config.MAX_OUTPUT_BYTES), "-o", output];
-    if (format.kind === "audio") return [...common, "-f", "bestaudio", "-x", "--audio-format", "mp3", "--audio-quality", `${format.bitrate ?? 192}K`, url];
+    const ffmpegArgs = config.FFMPEG_PATH === "ffmpeg" ? [] : ["--ffmpeg-location", config.FFMPEG_PATH];
+    const common = ["--ignore-config", "--no-playlist", "--no-warnings", "--newline", ...ffmpegArgs, ...this.extractorArgs(), "--progress-template", "download:PROGRESS:%(progress._percent_str)s", "--max-filesize", String(config.MAX_OUTPUT_BYTES), "-o", output];
+    if (format.kind === "audio") return [...common, "-f", "bestaudio/best", "-x", "--audio-format", "mp3", "--audio-quality", `${format.bitrate ?? 192}K`, "--", url];
     const selector = format.height ? `bestvideo[height<=${format.height}]+bestaudio/best[height<=${format.height}]` : "bestvideo+bestaudio/best";
-    return [...common, "-f", selector, "--merge-output-format", "mp4", url];
+    return [...common, "-f", selector, "--merge-output-format", "mp4", "--remux-video", "mp4", "--", url];
   }
 }
